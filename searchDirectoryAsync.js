@@ -1,70 +1,53 @@
-var async = require('async');
-var fs = require('fs');
-var dirname = process.argv[2];
-if (!dirname) {
-    console.log('no directory path!');
-    process.exit(-1);
-}
-
-fs.readdir(dirname, function(err, files) {
+(function() {
+    "use strict";
+    var async = require('async');
+    var fs = require('fs');
+    var dirname = process.argv[2];
+    const searchedText = 'org.netbeans.jemmy.TestCompletedException: Test passed';
     var countSuccess = 0;
     var countFailure = 0;
+    var filesWithFullPath = [];
     var failureFiles = [];
     var succeededFiles = [];
-    var searchedText = 'org.netbeans.jemmy.TestCompletedException: Test passed';
-    if (err) {
-        console.log(err);
-    } else {
-
-        async.eachSeries(files, function(file, callback) {
-            var filefulldir = dirname + '/' + file;
-            var result = null;
-            fs.readFile(filefulldir, (err, data) => {
-                if (data.indexOf(searchedText) > -1) {
-                    succeededFiles.push(file);
-                    result = {
-                        fileName: file,
-                        succeeded: true
-                    };
-                    console.log(result);
-                    callback(result);
-                } else {
-                    result = {
-                        fileName: file,
-                        succeeded: false
-                    };
-                    console.log(result);
-                    callback(result);
-                }
+    if (!dirname) {
+        console.log('no directory path!');
+        process.exit(-1);
+    }
+    fs.readdir(dirname, (err, files) => {
+        if (err) {
+            console.log(err);
+            process.exit(-1);
+        } else {
+            files.forEach((file, index) => {
+                filesWithFullPath.push(dirname + '/' + file);
             });
 
-
-        }, function(err, result) {
-
-            if (!err) {
-                if (result.succeeded) {
-                    countSuccess++;
-                    succeededFiles.push(result.fileName);
+            async.each(filesWithFullPath, (file, callback) => {
+                fs.readFile(file, (err, data) => {
+                    if (data.indexOf(searchedText) > -1) {
+                        countSuccess++;
+                        succeededFiles.push(file);
+                        callback(err);
+                    } else {
+                        countFailure++;
+                        failureFiles.push(file);
+                        callback(err);
+                    }
+                });
+            }, function(err) {
+                if (!err) {
+                    failureFiles.forEach((item, index) => {
+                        console.log('Failure tests:' + item);
+                    });
+                    succeededFiles.forEach((item, index) => {
+                        console.log('Successful tests:' + item);
+                    });
+                    console.log('count success: ' + countSuccess);
+                    console.log('count failure: ' + countFailure);
                 } else {
-                    countFailure++;
-                    failureFiles.push(result.fileName);
+                    console.log(err);
                 }
-
-                failureFiles.forEach(function(item, index) {
-                    console.log('Failure tests:' + item);
-                });
-                succeededFiles.forEach(function(item, index) {
-                    console.log('Successful tests:' + item);
-                });
-                console.log('count success: ' + countSuccess);
-                console.log('count failure: ' + countFailure);
-
-            } else {
-                console.log(err);
-            }
-        });
-
-
-
-    }
-});
+            });
+        }
+    });
+})();
